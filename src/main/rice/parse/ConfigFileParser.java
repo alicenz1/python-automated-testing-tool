@@ -1,49 +1,85 @@
 package main.rice.parse;
 
+
 import java.io.*;
 import java.nio.file.Files;
-import java.nio.file.Path;
+
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+
+import java.nio.file.Paths;
 
 public class ConfigFileParser {
 
     public static String readFile(String filepath) throws IOException {
-        try {
-            return Files.readString(Path.of(filepath));
-        } catch (IOException e) {
-            return "Error: IO Exception";
-        }
-
+        return Files.readString(Paths.get(filepath));
     }
 
     public static ConfigFile parse(String contents) throws InvalidConfigException {
 
-        if (!contents.contains("fname")) {
-            throw new InvalidConfigException("Missing fname key");
+        JSONObject obj;
+
+        try {
+            obj = new JSONObject(contents);
+        } catch (JSONException e) {
+            throw new InvalidConfigException("File does not contain a valid JSONObject");
         }
 
-        if (!contents.contains("types")) {
-            throw new InvalidConfigException("Missing types key");
+        String fname;
+
+        try {
+            fname = (String) obj.get("fname");
+        } catch (JSONException e) {
+            throw new InvalidConfigException("fname key does not exist");
+        } catch (ClassCastException e) {
+            throw new InvalidConfigException("fname value is not a String");
         }
 
-        if (!contents.contains("exhaustive domain")) {
-            throw new InvalidConfigException("Missing exhaustive domain key");
+        JSONArray types;
+
+        try {
+            types = (JSONArray) obj.get("types");
+        } catch (JSONException e) {
+            throw new InvalidConfigException("types key does not exist");
+        } catch (ClassCastException e) {
+            throw new InvalidConfigException("types value is not a JSONArray");
         }
 
-        if (!contents.contains("random domain")) {
-            throw new InvalidConfigException("Missing random domain key");
+        JSONArray exDomain;
+
+        try {
+            exDomain = (JSONArray) obj.get("exhaustive domain");
+        } catch (JSONException e) {
+            throw new InvalidConfigException("exhaustive domain key does not exist");
+        } catch (ClassCastException e) {
+            throw new InvalidConfigException("exhaustive domain value is not a JSONArray");
         }
 
-        if (!contents.contains("num random")) {
-            throw new InvalidConfigException("Missing num random key");
+        JSONArray ranDomain;
+
+        try {
+            ranDomain = (JSONArray) obj.get("random domain");
+        } catch (JSONException e) {
+            throw new InvalidConfigException("random domain key does not exist");
+        } catch (ClassCastException e) {
+            throw new InvalidConfigException("random domain value is not a JSONArray");
         }
 
-        String typesVal = contents.substring(contents.indexOf("types") + 5, contents.indexOf("exhaustive domain"));
-        String exDomainVal = contents.substring(contents.indexOf("exhaustive domain") + 17, contents.indexOf("random domain"));
-        String ranDomainVal = contents.substring(contents.indexOf("random domain") + 13, contents.indexOf("num random"));
-        String numRandomVal = contents.substring(contents.indexOf("num random") + 10, contents.indexOf("}"));
+        int numRand;
 
+        try {
+            numRand = (int) obj.get("num random");
+        } catch (JSONException e) {
+            throw new InvalidConfigException("num random key does not exist");
+        } catch (ClassCastException e) {
+            throw new InvalidConfigException("num random is not an integer");
+        }
 
-
+        if (numRand < 0) {
+            throw new InvalidConfigException("num random is a negative integer");
+        }
 
 
 
