@@ -11,6 +11,7 @@ import org.json.JSONObject;
 
 
 import java.nio.file.Paths;
+import java.sql.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -152,6 +153,11 @@ public class ConfigFileParser {
             }
 
             stringVal = stringVal.strip();
+
+            if (stringVal.substring(1,stringVal.length()-1).isEmpty()) {
+                throw new InvalidConfigException("character domain is empty");
+            }
+
             for (char c : stringVal.toCharArray()) {
                 charVal.add(c);
             }
@@ -232,37 +238,80 @@ public class ConfigFileParser {
     private static List<? extends Number> parseArray(String domainArray, APyNode<?> node) throws InvalidConfigException {
         domainArray = domainArray.strip();
         domainArray = domainArray.substring(1,domainArray.length()-1);
-        List<Number> domainParamNum = new ArrayList<>();
+        domainArray = domainArray.strip();
 
-        for (String s : domainArray.split(",")) {
-            domainParamNum.add(parseVal(s.strip(),node));
+        if (domainArray.isEmpty()) {
+            throw new InvalidConfigException("domain array is empty");
         }
 
-        return null;
+        List<? extends Number> domainParam;
+
+        if (node instanceof PyBoolNode || node instanceof PyIntNode || node instanceof PyStringNode) {
+            List<Integer> tempList = new ArrayList<>();
+            for (String s : domainArray.split(",")) {
+                tempList.add(parseIntVal(s.strip(),node));
+            }
+            domainParam = new ArrayList<>(tempList);
+            return domainParam;
+
+        } else if (node instanceof PyFloatNode) {
+            List<Double> tempList = new ArrayList<>();
+            for (String s : domainArray.split(",")) {
+                tempList.add(parseDoubleVal(s.strip()));
+            }
+            domainParam = new ArrayList<>(tempList);
+            return domainParam;
+
+        } else {
+            throw new InvalidConfigException("invalid array for domain");
+        }
+
     }
 
-    private static int parseVal(String domainVal, APyNode<?> node) throws InvalidConfigException {
+    private static int parseIntVal(String domainVal, APyNode<?> node) throws InvalidConfigException {
         domainVal = domainVal.strip();
 
-        if (node instanceof PyBoolNode || node instanceof PyIntNode) {
-            return parseInt(domainVal);
-
-        } else if (node instanceof PyStringNode) {
-            if (parseInt(domainVal) < 0) {
-                throw new InvalidConfigException("invalid negative domain for PyStringNode");
-            } else {
+        if (node instanceof PyIntNode) {
+            try {
                 return parseInt(domainVal);
+            } catch (NumberFormatException e) {
+                throw new InvalidConfigException("expected integer domain value");
+            }
+
+        } else if (node instanceof PyBoolNode) {
+            if (parseInt(domainVal) == 0 || parseInt(domainVal) == 1) {
+                try {
+                    return parseInt(domainVal);
+                } catch (NumberFormatException e) {
+                    throw new InvalidConfigException("expected integer domain value");
+                }
+            } else {
+                throw new InvalidConfigException("invalid domain for PyBoolNode, not 0 or 1");
+            }
+        }
+        else if (node instanceof PyStringNode || node instanceof PySetNode || node instanceof PyListNode
+        || node instanceof PyTupleNode || node instanceof PyDictNode) {
+            if (parseInt(domainVal) < 0) {
+                throw new InvalidConfigException("invalid negative domain for IterablePyNode");
+            } else {
+                try {
+                    return parseInt(domainVal);
+                } catch (NumberFormatException e) {
+                    throw new InvalidConfigException("expected integer domain value");
+                }
             }
         } else {
             throw new InvalidConfigException("invalid non-number attempted for domain");
         }
     }
 
-    private static double parseDoubleVal(String domainVal, APyNode<?> node) throws InvalidConfigException {
+    private static double parseDoubleVal(String domainVal) throws InvalidConfigException {
         domainVal = domainVal.strip();
-        if (node instanceof PyFloatNode) {
-            return parseDouble(domainVal);
 
+        try {
+            return parseDouble(domainVal);
+        } catch (NumberFormatException e) {
+            throw new InvalidConfigException("invalid float domain value");
         }
     }
 
