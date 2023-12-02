@@ -11,7 +11,6 @@ import org.json.JSONObject;
 
 
 import java.nio.file.Paths;
-import java.sql.Array;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -19,6 +18,7 @@ import java.util.Set;
 
 import static java.lang.Double.parseDouble;
 import static java.lang.Integer.parseInt;
+import static java.lang.Math.floor;
 
 public class ConfigFileParser {
 
@@ -109,6 +109,10 @@ public class ConfigFileParser {
         List<List<? extends Number>> exDomParams = new ArrayList<>();
         List<List<? extends Number>> ranDomParams = new ArrayList<>();
 
+        if (exDomain.length() != typeParams.size()) {
+            throw new InvalidConfigException("types and domain parameter structure do not match");
+        }
+
         for (int i = 0; i < exDomain.length(); i++) {
             String exDom;
 
@@ -117,6 +121,8 @@ public class ConfigFileParser {
             } catch (ClassCastException e) {
                 throw new InvalidConfigException("exhaustive domain's value is not a JSONArray of Strings");
             }
+
+            parseDomain(exDom, typeParams.get(i));
         }
 
         for (int i = 0; i < ranDomain.length(); i++) {
@@ -127,6 +133,8 @@ public class ConfigFileParser {
             } catch (ClassCastException e) {
                 throw new InvalidConfigException("random domain's value is not a JSONArray of Strings");
             }
+
+            parseDomain(ranDom, typeParams.get(i));
         }
 
 
@@ -209,30 +217,72 @@ public class ConfigFileParser {
         }
     }
 
-    private static List<? extends Number> parseDomain(String domain, APyNode<?> node) {
+    private static void parseDomain(String domain, APyNode<?> node) throws InvalidConfigException {
         domain = domain.strip();
         int parInd = domain.indexOf("(");
+        int colonInd = domain.indexOf(":");
 
-        if (parInd == -1 && node instanceof PyStringNode) {
-
-
+        if (parInd == -1) {
+            node.setExDomain(parseSimpleIterableDomain(domain,node));
+        } else if (colonInd == -1) {
+            node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            parseDomain(domain.substring(parInd+1), node.getLeftChild());
+        } else {
+            node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            parseDomain(domain.substring(parInd+1,colonInd), node.getLeftChild());
+            parseDomain(domain.substring(colonInd+1), node.getRightChild());
         }
-
-        return null;
     }
 
-    private static List<? extends Number> parseDomainHelper(String domain, APyNode<?> node) {
+    private static List<? extends Number> parseSimpleIterableDomain(String domain, APyNode<?> node) throws InvalidConfigException {
         domain = domain.strip();
         int tilInd = domain.indexOf("~");
 
         if (tilInd == -1) {
-            if (node instanceof PyIntNode) {
+            return parseArray(domain, node);
+        } else if (node instanceof PyIntNode || node instanceof PyBoolNode || node instanceof PyStringNode ||
+                node instanceof PySetNode || node instanceof PyListNode || node instanceof PyTupleNode ||
+                node instanceof PyDictNode){
 
+            int start;
+            int end;
+
+            start = parseIntVal(domain.substring(0,domain.indexOf("~")), node);
+            end = parseIntVal(domain.substring(domain.indexOf("~")+1), node);
+
+            if (start < end) {
+                List<? extends Number> domainParams;
+                List<Integer> tempList = new ArrayList<>();
+                for (int i = start; i <= end; i++) {
+                    tempList.add(i);
+                }
+                domainParams = new ArrayList<>(tempList);
+                return domainParams;
+            } else {
+                throw new InvalidConfigException("invalid integer range, lower bound is greater than upper bound");
             }
+        } else if (node instanceof PyFloatNode) {
+            Double start;
+            Double end;
+
+            start = parseDoubleVal(domain.substring(0,domain.indexOf("~")));
+            end = parseDoubleVal(domain.substring(domain.indexOf("~")+1));
+
+            if (start < end) {
+                List<? extends Number> domainParams;
+                List<Double> tempList = new ArrayList<>();
+                for (Double i = start; i <= end; i++) {
+                    tempList.add(floor(i));
+                }
+                domainParams = new ArrayList<>(tempList);
+                return domainParams;
+
+            } else {
+                throw new InvalidConfigException("invalid float range, lower bound is greater than upper bound");
+            }
+        } else {
+            throw new InvalidConfigException("invalid domain range construction");
         }
-
-
-        return null;
     }
 
     private static List<? extends Number> parseArray(String domainArray, APyNode<?> node) throws InvalidConfigException {
