@@ -13,12 +13,32 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
+/**
+ * Main class to execute FEAT tool.
+ */
 public class Main {
+    /**
+     * The Main function for the FEAT tool.
+     *
+     * @param args
+     * @throws IOException
+     * @throws InvalidConfigException
+     * @throws InterruptedException
+     */
     public static void main(String[] args) throws IOException, InvalidConfigException, InterruptedException {
-        System.out.print("");
+        System.out.print("This is a concise set of test cases that should be used to evaluate the function under test.");
         System.out.print(generateTests(args));
     }
 
+    /**
+     * A helper function to generate a concise set of tests.
+     *
+     * @param args
+     * @return
+     * @throws IOException
+     * @throws InvalidConfigException
+     * @throws InterruptedException
+     */
     public static Set<TestCase> generateTests(String[] args) throws IOException, InvalidConfigException, InterruptedException {
         String contents = ConfigFileParser.readFile(args[0]);
         ConfigFile configFile = ConfigFileParser.parse(contents);
