@@ -20,7 +20,8 @@ public class Main {
     /**
      * The Main function for the FEAT tool.
      *
-     * @param args
+     * @param args      String containing (0) the path to the config file, (1) the path to the reference solution,
+     *                  (2) the path to the directory containing the buggy implementations.
      * @throws IOException
      * @throws InvalidConfigException
      * @throws InterruptedException
