@@ -137,10 +137,7 @@ public class ConfigFileParser {
             parseDomain(ranDom, typeParams.get(i));
         }
 
-
-
-
-        return null;
+        return new ConfigFile(fname,typeParams,numRand);
     }
 
     private static APyNode<?> parseType(String type) throws InvalidConfigException {
@@ -225,9 +222,15 @@ public class ConfigFileParser {
         if (parInd == -1) {
             node.setExDomain(parseSimpleIterableDomain(domain,node));
         } else if (colonInd == -1) {
+            if (domain.substring(0,parInd).isEmpty() || domain.substring(parInd+1).isEmpty()) {
+                throw new InvalidConfigException("invalid domain construction, unexpected (");
+            }
             node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
             parseDomain(domain.substring(parInd+1), node.getLeftChild());
         } else {
+            if (domain.substring(0,parInd).isEmpty() || domain.substring(parInd+1,colonInd).isEmpty() || domain.substring(colonInd+1).isEmpty()) {
+                throw new InvalidConfigException("invalid domain construction, unexpected : or (");
+            }
             node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
             parseDomain(domain.substring(parInd+1,colonInd), node.getLeftChild());
             parseDomain(domain.substring(colonInd+1), node.getRightChild());
@@ -341,14 +344,13 @@ public class ConfigFileParser {
         }
         else if (node instanceof PyStringNode || node instanceof PySetNode || node instanceof PyListNode
         || node instanceof PyTupleNode || node instanceof PyDictNode) {
-            if (parseInt(domainVal) < 0) {
-                throw new InvalidConfigException("invalid negative domain for IterablePyNode");
-            } else {
-                try {
-                    return parseInt(domainVal);
-                } catch (NumberFormatException e) {
-                    throw new InvalidConfigException("expected integer domain value");
+            try {
+                if (parseInt(domainVal) < 0) {
+                    throw new InvalidConfigException("invalid negative domain for IterablePyNode");
                 }
+                return parseInt(domainVal);
+            } catch (NumberFormatException e) {
+                throw new InvalidConfigException("expected integer domain value");
             }
         } else {
             throw new InvalidConfigException("invalid non-number attempted for domain");
