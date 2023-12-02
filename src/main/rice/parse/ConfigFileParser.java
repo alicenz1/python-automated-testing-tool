@@ -122,7 +122,7 @@ public class ConfigFileParser {
                 throw new InvalidConfigException("exhaustive domain's value is not a JSONArray of Strings");
             }
 
-            parseDomain(exDom, typeParams.get(i));
+            parseDomain(exDom, typeParams.get(i), "exhaustive");
         }
 
         for (int i = 0; i < ranDomain.length(); i++) {
@@ -134,7 +134,7 @@ public class ConfigFileParser {
                 throw new InvalidConfigException("random domain's value is not a JSONArray of Strings");
             }
 
-            parseDomain(ranDom, typeParams.get(i));
+            parseDomain(ranDom, typeParams.get(i), "random");
         }
 
         return new ConfigFile(fname,typeParams,numRand);
@@ -147,7 +147,7 @@ public class ConfigFileParser {
         if (parInd == -1) {
             return parseSimpleType(type);
 
-        } else if (type.substring(0, parInd).equals("str")) {
+        } else if (type.substring(0, parInd).strip().equals("str")) {
             String stringVal;
             Set<Character> charVal = new HashSet<>();
 
@@ -169,7 +169,7 @@ public class ConfigFileParser {
 
             return new PyStringNode(charVal);
 
-        } else if (type.substring(0, parInd).equals("dict")) {
+        } else if (type.substring(0, parInd).strip().equals("dict")) {
             int colonInd = type.indexOf(":");
 
             return new PyDictNode<>(parseType(type.substring(parInd+1, colonInd)),
@@ -214,26 +214,39 @@ public class ConfigFileParser {
         }
     }
 
-    private static void parseDomain(String domain, APyNode<?> node) throws InvalidConfigException {
+    private static void parseDomain(String domain, APyNode<?> node, String domainType) throws InvalidConfigException {
         domain = domain.strip();
         int parInd = domain.indexOf("(");
         int colonInd = domain.indexOf(":");
 
         if (parInd == -1) {
-            node.setExDomain(parseSimpleIterableDomain(domain,node));
+            if (domainType.equals("exhaustive")) {
+                node.setExDomain(parseSimpleIterableDomain(domain,node));
+            } else if (domainType.equals("random")) {
+                node.setRanDomain(parseSimpleIterableDomain(domain,node));
+            }
+
         } else if (colonInd == -1) {
             if (domain.substring(0,parInd).isEmpty() || domain.substring(parInd+1).isEmpty()) {
                 throw new InvalidConfigException("invalid domain construction, unexpected (");
             }
-            node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
-            parseDomain(domain.substring(parInd+1), node.getLeftChild());
+            if (domainType.equals("exhaustive")) {
+                node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            } else if (domainType.equals("random")) {
+                node.setRanDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            }
+            parseDomain(domain.substring(parInd+1), node.getLeftChild(), domainType);
         } else {
             if (domain.substring(0,parInd).isEmpty() || domain.substring(parInd+1,colonInd).isEmpty() || domain.substring(colonInd+1).isEmpty()) {
                 throw new InvalidConfigException("invalid domain construction, unexpected : or (");
             }
-            node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
-            parseDomain(domain.substring(parInd+1,colonInd), node.getLeftChild());
-            parseDomain(domain.substring(colonInd+1), node.getRightChild());
+            if (domainType.equals("exhaustive")) {
+                node.setExDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            } else if (domainType.equals("random")) {
+                node.setRanDomain(parseSimpleIterableDomain(domain.substring(0,parInd),node));
+            }
+            parseDomain(domain.substring(parInd+1,colonInd), node.getLeftChild(), domainType);
+            parseDomain(domain.substring(colonInd+1), node.getRightChild(), domainType);
         }
     }
 
@@ -253,7 +266,7 @@ public class ConfigFileParser {
             start = parseIntVal(domain.substring(0,domain.indexOf("~")), node);
             end = parseIntVal(domain.substring(domain.indexOf("~")+1), node);
 
-            if (start < end) {
+            if (start <= end) {
                 List<? extends Number> domainParams;
                 List<Integer> tempList = new ArrayList<>();
                 for (int i = start; i <= end; i++) {
@@ -299,7 +312,8 @@ public class ConfigFileParser {
 
         List<? extends Number> domainParam;
 
-        if (node instanceof PyBoolNode || node instanceof PyIntNode || node instanceof PyStringNode) {
+        if (node instanceof PyBoolNode || node instanceof PyIntNode || node instanceof PyStringNode ||
+                node instanceof PyListNode ) {
             List<Integer> tempList = new ArrayList<>();
             for (String s : domainArray.split(",")) {
                 tempList.add(parseIntVal(s.strip(),node));
@@ -366,7 +380,6 @@ public class ConfigFileParser {
             throw new InvalidConfigException("invalid float domain value");
         }
     }
-
 
 }
 
