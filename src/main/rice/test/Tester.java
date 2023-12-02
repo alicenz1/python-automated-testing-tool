@@ -161,7 +161,7 @@ public class Tester {
         List<String> args = new ArrayList<>();
 
         // The solution must be a python3 file
-        args.add("python3");
+        args.add("python");
         args.add(this.solutionPath);
 
         // Add each argument as a string; the footer will take care of converting these to
@@ -185,7 +185,7 @@ public class Tester {
         List<String> args = new ArrayList<>();
 
         // The implementation must be a python3 file
-        args.add("python3");
+        args.add("python");
 
         // Directly invoking the wrapper, which will dynamically load the file under test
         args.add(this.implDirPath + "/wrapper.py");

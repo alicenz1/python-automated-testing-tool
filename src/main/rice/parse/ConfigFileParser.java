@@ -1,6 +1,5 @@
 package main.rice.parse;
 
-
 import java.io.*;
 import java.nio.file.Files;
 
@@ -8,7 +7,6 @@ import main.rice.node.*;
 import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
-
 
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -20,6 +18,9 @@ import static java.lang.Double.parseDouble;
 import static java.lang.Integer.parseInt;
 import static java.lang.Math.floor;
 
+/**
+ * Parser for the config file containing data on the function under test.
+ */
 public class ConfigFileParser {
 
     public static String readFile(String filepath) throws IOException {
@@ -109,7 +110,7 @@ public class ConfigFileParser {
         List<List<? extends Number>> exDomParams = new ArrayList<>();
         List<List<? extends Number>> ranDomParams = new ArrayList<>();
 
-        if (exDomain.length() != typeParams.size()) {
+        if (exDomain.length() != typeParams.size() || ranDomain.length() != typeParams.size()) {
             throw new InvalidConfigException("types and domain parameter structure do not match");
         }
 
@@ -159,7 +160,7 @@ public class ConfigFileParser {
 
             stringVal = stringVal.strip();
 
-            if (stringVal.substring(1,stringVal.length()-1).isEmpty()) {
+            if (stringVal.isEmpty()) {
                 throw new InvalidConfigException("character domain is empty");
             }
 
@@ -256,16 +257,17 @@ public class ConfigFileParser {
 
         if (tilInd == -1) {
             return parseArray(domain, node);
-        } else if (node instanceof PyIntNode || node instanceof PyBoolNode || node instanceof PyStringNode ||
+        }
+
+        int start;
+        int end;
+
+        start = parseIntVal(domain.substring(0,domain.indexOf("~")), node);
+        end = parseIntVal(domain.substring(domain.indexOf("~")+1), node);
+
+        if (node instanceof PyIntNode || node instanceof PyBoolNode || node instanceof PyStringNode ||
                 node instanceof PySetNode || node instanceof PyListNode || node instanceof PyTupleNode ||
                 node instanceof PyDictNode){
-
-            int start;
-            int end;
-
-            start = parseIntVal(domain.substring(0,domain.indexOf("~")), node);
-            end = parseIntVal(domain.substring(domain.indexOf("~")+1), node);
-
             if (start <= end) {
                 List<? extends Number> domainParams;
                 List<Integer> tempList = new ArrayList<>();
@@ -278,16 +280,10 @@ public class ConfigFileParser {
                 throw new InvalidConfigException("invalid integer range, lower bound is greater than upper bound");
             }
         } else if (node instanceof PyFloatNode) {
-            Double start;
-            Double end;
-
-            start = parseDoubleVal(domain.substring(0,domain.indexOf("~")));
-            end = parseDoubleVal(domain.substring(domain.indexOf("~")+1));
-
             if (start < end) {
                 List<? extends Number> domainParams;
                 List<Double> tempList = new ArrayList<>();
-                for (Double i = start; i <= end; i++) {
+                for (Double i = start*1.0; i <= end; i++) {
                     tempList.add(floor(i));
                 }
                 domainParams = new ArrayList<>(tempList);
@@ -316,7 +312,10 @@ public class ConfigFileParser {
                 node instanceof PyListNode ) {
             List<Integer> tempList = new ArrayList<>();
             for (String s : domainArray.split(",")) {
-                tempList.add(parseIntVal(s.strip(),node));
+                Integer elem = parseIntVal(s.strip(),node);
+                if (!tempList.contains(elem)) {
+                    tempList.add(elem);
+                }
             }
             domainParam = new ArrayList<>(tempList);
             return domainParam;
@@ -324,7 +323,10 @@ public class ConfigFileParser {
         } else if (node instanceof PyFloatNode) {
             List<Double> tempList = new ArrayList<>();
             for (String s : domainArray.split(",")) {
-                tempList.add(parseDoubleVal(s.strip()));
+                Double elem = parseDoubleVal(s.strip());
+                if (!tempList.contains(elem)) {
+                    tempList.add(elem);
+                }
             }
             domainParam = new ArrayList<>(tempList);
             return domainParam;
@@ -332,13 +334,12 @@ public class ConfigFileParser {
         } else {
             throw new InvalidConfigException("invalid array for domain");
         }
-
     }
 
     private static int parseIntVal(String domainVal, APyNode<?> node) throws InvalidConfigException {
         domainVal = domainVal.strip();
 
-        if (node instanceof PyIntNode) {
+        if (node instanceof PyIntNode || node instanceof PyFloatNode) {
             try {
                 return parseInt(domainVal);
             } catch (NumberFormatException e) {
@@ -380,7 +381,6 @@ public class ConfigFileParser {
             throw new InvalidConfigException("invalid float domain value");
         }
     }
-
 }
 
 // TODO: implement the ConfigFileParser class here
